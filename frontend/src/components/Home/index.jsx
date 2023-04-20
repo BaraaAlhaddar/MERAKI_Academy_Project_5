@@ -42,7 +42,8 @@ import ButtonGroup from "@mui/material/ButtonGroup";
 import { useNavigate } from "react-router-dom";
 import Popup_Add_New_Post from "./PopupAddNewPost/index";
 import Offcanvas from "react-bootstrap/Offcanvas";
-
+import Skeleton from "@mui/material/Skeleton";
+import Stack from "@mui/material/Stack";
 // ----------------------------------------------
 const ExpandMore = styled((props) => {
   const { expand, ...other } = props;
@@ -57,7 +58,7 @@ const ExpandMore = styled((props) => {
 export default function Home() {
   const navigate = useNavigate();
   const [showUpdate, setShowUpdate] = useState(false);
-
+  const [noPosts, setNoPosts] = useState(false);
   const handleCloseUpdate = () => setShowUpdate(false);
   const handleShowUpdate = (id) => setShowUpdate(id);
   const dispatch = useDispatch();
@@ -150,10 +151,12 @@ export default function Home() {
       if (result.data.success) {
         console.log(result.data.success);
         dispatch(setPosts(result.data.result));
+        setNoPosts(false);
       } else throw Error;
     } catch (error) {
       if (!error.response.data.success) {
         dispatch(setPosts([]));
+        setNoPosts(true);
         return console.log(error.response.data.message);
       }
       console.log("Error happened while Get Data, please try again");
@@ -269,331 +272,370 @@ export default function Home() {
       </div>
       <div className="feed">
         <Container>
-          {posts.length > 0 ? (
+          {noPosts ? (
             <>
-              {posts.map((post) => {
-                return (
-                  <Card key={post.id} sx={{ margin: "10px 0" }}>
-                    <CardHeader
-                      avatar={
-                        <Avatar
-                          onClick={(e) => {
-                            navigate(`/profile/${post.user_id}`);
-                          }}
-                          sx={{ bgcolor: red[500] }}
-                          src={post.user_img}
-                          aria-label="recipe"
-                        ></Avatar>
-                      }
-                      action={
-                        userId == post.user_id && (
-                          <IconButton
-                            aria-controls={open ? "long-menu" : undefined}
-                            aria-expanded={open ? "true" : undefined}
-                            onClick={handleClick}
-                            aria-label="settings"
-                          >
-                            <MoreVertIcon />
-                          </IconButton>
-                        )
-                      }
-                      title={post.user_first_name}
-                      subheader={post.created_at}
-                    />
-
-                    {}
-                    <Menu
-                      id="long-menu"
-                      MenuListProps={{
-                        "aria-labelledby": "long-button",
-                      }}
-                      anchorEl={anchorEl}
-                      open={open}
-                      onClose={handleClose}
-                      PaperProps={{
-                        style: {
-                          width: "20ch",
-                        },
-                      }}
-                    >
-                      <MenuItem
-                        onClick={(e) => {
-                          deletePost(post.id);
-                          handleClose();
-                        }}
-                      >
-                        Delete Post
-                      </MenuItem>
-                    </Menu>
-
-                    <CardMedia
-                      component="img"
-                      // height="194"
-                      image={post.img}
-                      alt="post"
-                    />
-                    <CardContent>
-                      <p>
-                        <strong>{post.description}</strong>
-                      </p>
-                    </CardContent>
-                    <CardActions disableSpacing>
-                      {isLiked(likes, post.id) !== -1 ? (
-                        <div style={{ display: "flex" }}>
-                          <IconButton
-                            onClick={(e) => {
-                              axios
-                                .delete(`${BACKEND}/likes/${post.id}`, {
-                                  headers: {
-                                    Authorization: `Bearer ${token}`,
-                                  },
-                                })
-                                .then((result) => {
-                                  console.log(result);
-                                  dispatch(removeLikePost(post.id));
-                                  dispatch(removeLike(post.id));
-                                })
-                                .catch((err) => {
-                                  console.log(err);
-                                });
-                            }}
-                            aria-label="add to favorites"
-                          >
-                            <FavoriteIcon style={{ color: "red" }} />
-                          </IconButton>
-                          <p style={{ margin: "10px" }}>
-                            {parseInt(post.likes_count)}
-                          </p>
-                        </div>
-                      ) : (
-                        <div style={{ display: "flex" }}>
-                          {" "}
-                          <IconButton
-                            onClick={(e) => {
-                              const payload = {
-                                posts_id: post.id,
-                                user_id: userId,
-                              };
-                              axios
-                                .post(
-                                  `${BACKEND}/likes/${post.id}`,
-                                  {},
-                                  {
-                                    headers: {
-                                      Authorization: `Bearer ${token}`,
-                                    },
-                                  }
-                                )
-                                .then((result) => {
-                                  console.log(result);
-                                  dispatch(addLikePost(post.id));
-                                  dispatch(addLike(payload));
-                                })
-                                .catch((err) => {
-                                  console.log(err);
-                                });
-                            }}
-                            aria-label="add to favorites"
-                          >
-                            <FavoriteIcon />
-                          </IconButton>
-                          <p style={{ margin: "10px" }}>{post.likes_count}</p>
-                        </div>
-                      )}
-
-                      <ExpandMore
-                        expand={expanded === post.id}
-                        onClick={handleExpandClick(post.id)}
-                        aria-expanded={expanded === post.id}
-                        aria-label="show more"
-                      >
-                        <MdComment />
-                      </ExpandMore>
-                    </CardActions>
-                    <Collapse
-                      in={expanded === post.id}
-                      timeout="auto"
-                      unmountOnExit
-                    >
-                      <CardContent>
-                        <div style={{ display: "flex", marginBottom: "20px" }}>
-                          <Avatar
-                            style={{ height: "55px", width: "55px" }}
-                            alt="user"
-                            src={pfp}
-                          />
-                          <Form
-                            style={{ display: "flex", width: "100%" }}
-                            onSubmit={async (e) => {
-                              e.preventDefault();
-                              try {
-                                const result = await axios.post(
-                                  `${BACKEND}/comments/${post.id}`,
-                                  { comment: e.target[0].value },
-                                  {
-                                    headers: {
-                                      Authorization: `Bearer ${token}`,
-                                    },
-                                  }
-                                );
-                                if (result.data.success) {
-                                  const comment = result.data.result;
-                                  comment.img = pfp;
-                                  comment.first_name = userName;
-                                  dispatch(
-                                    addComment({
-                                      post_id: post.id,
-                                      comment,
-                                    })
-                                  );
-                                  e.target[0].value = "";
-                                } else throw Error;
-                              } catch (err) {
-                                console.log(err);
-                              }
-                            }}
-                          >
-                            <Form.Control
-                              style={{ margin: "0 10px", width: "95%" }}
-                              type="text"
-                              placeholder="Add a comment.."
-                            />
-                            <Button
-                              type="submit"
-                              variant="contained"
-                              endIcon={<SendIcon />}
-                            >
-                              Send
-                            </Button>
-                          </Form>
-                        </div>
-                        <div>
-                          {" "}
-                          <List
-                            sx={{
-                              width: "100%",
-
-                              bgcolor: "background.paper",
-                            }}
-                          >
-                            <ListGroup>
-                              {post.comments ? (
-                                post.comments.map((comment) => {
-                                  return (
-                                    <ListGroup.Item
-                                      key={comment.id}
-                                      style={{
-                                        display: "flex",
-                                      }}
-                                    >
-                                      <ListItem>
-                                        <ListItemAvatar>
-                                          <Avatar src={comment.img} />
-                                        </ListItemAvatar>
-                                        <ListItemText
-                                          primary={comment.comment}
-                                          secondary={`By ${comment.first_name}`}
-                                        />
-                                      </ListItem>
-                                      {(role === "Admin" ||
-                                        userId == comment.user_id) && (
-                                        <>
-                                          {userId == comment.user_id && (
-                                            <>
-                                              <IconButton
-                                                onClick={(e) => {
-                                                  handleShowUpdate(comment.id);
-                                                }}
-                                                aria-label="edit comment"
-                                              >
-                                                <MdEdit />
-                                              </IconButton>
-                                              <Modal
-                                                show={showUpdate === comment.id}
-                                                onHide={handleCloseUpdate}
-                                              >
-                                                <Modal.Header closeButton>
-                                                  <Modal.Title>
-                                                    Update Comment
-                                                  </Modal.Title>
-                                                </Modal.Header>
-
-                                                <Form
-                                                  onSubmit={(e) => {
-                                                    e.preventDefault();
-                                                    console.log(
-                                                      e.target[0].value
-                                                    );
-                                                    updateCommentFunction(
-                                                      comment.id,
-                                                      post.id,
-                                                      e.target[0].value
-                                                    );
-                                                    handleCloseUpdate();
-                                                  }}
-                                                >
-                                                  <Modal.Body>
-                                                    <Form.Control
-                                                      type="text"
-                                                      defaultValue={
-                                                        comment.comment
-                                                      }
-                                                    />
-                                                  </Modal.Body>
-                                                  <Modal.Footer>
-                                                    <Button type="submit">
-                                                      Save Changes
-                                                    </Button>
-                                                  </Modal.Footer>
-                                                </Form>
-                                              </Modal>
-                                            </>
-                                          )}
-
-                                          <IconButton
-                                            onClick={(e) => {
-                                              deleteCommentFunction(
-                                                comment.id,
-                                                post.id
-                                              );
-                                            }}
-                                            aria-label="delete comment"
-                                          >
-                                            <MdDelete />
-                                          </IconButton>
-                                        </>
-                                      )}
-                                    </ListGroup.Item>
-                                  );
-                                })
-                              ) : (
-                                <></>
-                              )}
-                            </ListGroup>
-                          </List>
-                        </div>
-                      </CardContent>
-                    </Collapse>
-                    <Popup_Add_New_Post
-                      set={setModalShowPopupAddNewPost}
-                      show={modalShowPopupAddNewPost}
-                      onHide={() => setModalShowPopupAddNewPost(false)}
-                    />
-                    <Offcanvas show={show} onHide={handleClose22}>
-                      <Offcanvas.Header closeButton>
-                        <Offcanvas.Title>Tags</Offcanvas.Title>
-                      </Offcanvas.Header>
-                      <Offcanvas.Body>
-                        <ListGroup>{tagsFunction()}</ListGroup>
-                      </Offcanvas.Body>
-                    </Offcanvas>
-                  </Card>
-                );
-              })}
+              <h1 style={{ marginTop: "200px" }}>No Posts for you to see</h1>
             </>
           ) : (
             <>
-              <h1 style={{ marginTop: "200px" }}>No Posts Yet</h1>
+              {posts.length > 0 ? (
+                <>
+                  {posts.map((post) => {
+                    return (
+                      <Card key={post.id} sx={{ margin: "10px 0" }}>
+                        <CardHeader
+                          avatar={
+                            <Avatar
+                              onClick={(e) => {
+                                navigate(`/profile/${post.user_id}`);
+                              }}
+                              sx={{ bgcolor: red[500] }}
+                              src={post.user_img}
+                              aria-label="recipe"
+                            ></Avatar>
+                          }
+                          action={
+                            userId == post.user_id && (
+                              <IconButton
+                                aria-controls={open ? "long-menu" : undefined}
+                                aria-expanded={open ? "true" : undefined}
+                                onClick={handleClick}
+                                aria-label="settings"
+                              >
+                                <MoreVertIcon />
+                              </IconButton>
+                            )
+                          }
+                          title={post.user_first_name}
+                          subheader={post.created_at}
+                        />
+
+                        {}
+                        <Menu
+                          id="long-menu"
+                          MenuListProps={{
+                            "aria-labelledby": "long-button",
+                          }}
+                          anchorEl={anchorEl}
+                          open={open}
+                          onClose={handleClose}
+                          PaperProps={{
+                            style: {
+                              width: "20ch",
+                            },
+                          }}
+                        >
+                          <MenuItem
+                            onClick={(e) => {
+                              deletePost(post.id);
+                              handleClose();
+                            }}
+                          >
+                            Delete Post
+                          </MenuItem>
+                        </Menu>
+
+                        <CardMedia
+                          component="img"
+                          // height="194"
+                          image={post.img}
+                          alt="post"
+                        />
+                        <CardContent>
+                          <p>
+                            <strong>{post.description}</strong>
+                          </p>
+                        </CardContent>
+                        <CardActions disableSpacing>
+                          {isLiked(likes, post.id) !== -1 ? (
+                            <div style={{ display: "flex" }}>
+                              <IconButton
+                                onClick={(e) => {
+                                  axios
+                                    .delete(`${BACKEND}/likes/${post.id}`, {
+                                      headers: {
+                                        Authorization: `Bearer ${token}`,
+                                      },
+                                    })
+                                    .then((result) => {
+                                      console.log(result);
+                                      dispatch(removeLikePost(post.id));
+                                      dispatch(removeLike(post.id));
+                                    })
+                                    .catch((err) => {
+                                      console.log(err);
+                                    });
+                                }}
+                                aria-label="add to favorites"
+                              >
+                                <FavoriteIcon style={{ color: "red" }} />
+                              </IconButton>
+                              <p style={{ margin: "10px" }}>
+                                {parseInt(post.likes_count)}
+                              </p>
+                            </div>
+                          ) : (
+                            <div style={{ display: "flex" }}>
+                              {" "}
+                              <IconButton
+                                onClick={(e) => {
+                                  const payload = {
+                                    posts_id: post.id,
+                                    user_id: userId,
+                                  };
+                                  axios
+                                    .post(
+                                      `${BACKEND}/likes/${post.id}`,
+                                      {},
+                                      {
+                                        headers: {
+                                          Authorization: `Bearer ${token}`,
+                                        },
+                                      }
+                                    )
+                                    .then((result) => {
+                                      console.log(result);
+                                      dispatch(addLikePost(post.id));
+                                      dispatch(addLike(payload));
+                                    })
+                                    .catch((err) => {
+                                      console.log(err);
+                                    });
+                                }}
+                                aria-label="add to favorites"
+                              >
+                                <FavoriteIcon />
+                              </IconButton>
+                              <p style={{ margin: "10px" }}>
+                                {post.likes_count}
+                              </p>
+                            </div>
+                          )}
+
+                          <ExpandMore
+                            expand={expanded === post.id}
+                            onClick={handleExpandClick(post.id)}
+                            aria-expanded={expanded === post.id}
+                            aria-label="show more"
+                          >
+                            <MdComment />
+                          </ExpandMore>
+                        </CardActions>
+                        <Collapse
+                          in={expanded === post.id}
+                          timeout="auto"
+                          unmountOnExit
+                        >
+                          <CardContent>
+                            <div
+                              style={{ display: "flex", marginBottom: "20px" }}
+                            >
+                              <Avatar
+                                style={{ height: "55px", width: "55px" }}
+                                alt="user"
+                                src={pfp}
+                              />
+                              <Form
+                                style={{ display: "flex", width: "100%" }}
+                                onSubmit={async (e) => {
+                                  e.preventDefault();
+                                  try {
+                                    const result = await axios.post(
+                                      `${BACKEND}/comments/${post.id}`,
+                                      { comment: e.target[0].value },
+                                      {
+                                        headers: {
+                                          Authorization: `Bearer ${token}`,
+                                        },
+                                      }
+                                    );
+                                    if (result.data.success) {
+                                      const comment = result.data.result;
+                                      comment.img = pfp;
+                                      comment.first_name = userName;
+                                      dispatch(
+                                        addComment({
+                                          post_id: post.id,
+                                          comment,
+                                        })
+                                      );
+                                      e.target[0].value = "";
+                                    } else throw Error;
+                                  } catch (err) {
+                                    console.log(err);
+                                  }
+                                }}
+                              >
+                                <Form.Control
+                                  style={{ margin: "0 10px", width: "95%" }}
+                                  type="text"
+                                  placeholder="Add a comment.."
+                                />
+                                <Button
+                                  type="submit"
+                                  variant="contained"
+                                  endIcon={<SendIcon />}
+                                >
+                                  Send
+                                </Button>
+                              </Form>
+                            </div>
+                            <div>
+                              {" "}
+                              <List
+                                sx={{
+                                  width: "100%",
+
+                                  bgcolor: "background.paper",
+                                }}
+                              >
+                                <ListGroup>
+                                  {post.comments ? (
+                                    post.comments.map((comment) => {
+                                      return (
+                                        <ListGroup.Item
+                                          key={comment.id}
+                                          style={{
+                                            display: "flex",
+                                          }}
+                                        >
+                                          <ListItem>
+                                            <ListItemAvatar>
+                                              <Avatar src={comment.img} />
+                                            </ListItemAvatar>
+                                            <ListItemText
+                                              primary={comment.comment}
+                                              secondary={`By ${comment.first_name}`}
+                                            />
+                                          </ListItem>
+                                          {(role === "Admin" ||
+                                            userId == comment.user_id) && (
+                                            <>
+                                              {userId == comment.user_id && (
+                                                <>
+                                                  <IconButton
+                                                    onClick={(e) => {
+                                                      handleShowUpdate(
+                                                        comment.id
+                                                      );
+                                                    }}
+                                                    aria-label="edit comment"
+                                                  >
+                                                    <MdEdit />
+                                                  </IconButton>
+                                                  <Modal
+                                                    show={
+                                                      showUpdate === comment.id
+                                                    }
+                                                    onHide={handleCloseUpdate}
+                                                  >
+                                                    <Modal.Header closeButton>
+                                                      <Modal.Title>
+                                                        Update Comment
+                                                      </Modal.Title>
+                                                    </Modal.Header>
+
+                                                    <Form
+                                                      onSubmit={(e) => {
+                                                        e.preventDefault();
+                                                        console.log(
+                                                          e.target[0].value
+                                                        );
+                                                        updateCommentFunction(
+                                                          comment.id,
+                                                          post.id,
+                                                          e.target[0].value
+                                                        );
+                                                        handleCloseUpdate();
+                                                      }}
+                                                    >
+                                                      <Modal.Body>
+                                                        <Form.Control
+                                                          type="text"
+                                                          defaultValue={
+                                                            comment.comment
+                                                          }
+                                                        />
+                                                      </Modal.Body>
+                                                      <Modal.Footer>
+                                                        <Button type="submit">
+                                                          Save Changes
+                                                        </Button>
+                                                      </Modal.Footer>
+                                                    </Form>
+                                                  </Modal>
+                                                </>
+                                              )}
+
+                                              <IconButton
+                                                onClick={(e) => {
+                                                  deleteCommentFunction(
+                                                    comment.id,
+                                                    post.id
+                                                  );
+                                                }}
+                                                aria-label="delete comment"
+                                              >
+                                                <MdDelete />
+                                              </IconButton>
+                                            </>
+                                          )}
+                                        </ListGroup.Item>
+                                      );
+                                    })
+                                  ) : (
+                                    <></>
+                                  )}
+                                </ListGroup>
+                              </List>
+                            </div>
+                          </CardContent>
+                        </Collapse>
+                        <Popup_Add_New_Post
+                          set={setModalShowPopupAddNewPost}
+                          show={modalShowPopupAddNewPost}
+                          onHide={() => setModalShowPopupAddNewPost(false)}
+                        />
+                        <Offcanvas show={show} onHide={handleClose22}>
+                          <Offcanvas.Header closeButton>
+                            <Offcanvas.Title>Tags</Offcanvas.Title>
+                          </Offcanvas.Header>
+                          <Offcanvas.Body>
+                            <ListGroup>{tagsFunction()}</ListGroup>
+                          </Offcanvas.Body>
+                        </Offcanvas>
+                      </Card>
+                    );
+                  })}
+                </>
+              ) : (
+                <>
+                  <Stack spacing={1}>
+                    {/* For variant="text", adjust the height via font-size */}
+                    <Skeleton variant="text" sx={{ fontSize: "1rem" }} />
+                    {/* For other variants, adjust the size with `width` and `height` */}
+                    <Skeleton variant="circular" width={40} height={40} />
+                    <Skeleton variant="rectangular" width={210} height={60} />
+                    <Skeleton variant="rounded" width={210} height={60} />
+                  </Stack>
+                  <Stack spacing={1}>
+                    {/* For variant="text", adjust the height via font-size */}
+                    <Skeleton variant="text" sx={{ fontSize: "1rem" }} />
+                    {/* For other variants, adjust the size with `width` and `height` */}
+                    <Skeleton variant="circular" width={40} height={40} />
+                    <Skeleton variant="rectangular" width={210} height={60} />
+                    <Skeleton variant="rounded" width={210} height={60} />
+                  </Stack>
+                  <Stack spacing={1}>
+                    {/* For variant="text", adjust the height via font-size */}
+                    <Skeleton variant="text" sx={{ fontSize: "1rem" }} />
+                    {/* For other variants, adjust the size with `width` and `height` */}
+                    <Skeleton variant="circular" width={40} height={40} />
+                    <Skeleton variant="rectangular" width={210} height={60} />
+                    <Skeleton variant="rounded" width={210} height={60} />
+                  </Stack>
+                </>
+              )}
             </>
           )}
         </Container>
